@@ -58,7 +58,7 @@ export class Editor {
 	{
 		return this.clipboardDeque[i % MAX_CLIPBOARD]
 	}
-	private updateMultiClip(text: string)
+	private updateMultiClip(text: string | undefined)
 	{
 		let found = this.clipboardDeque.indexOf(text);
 		if (found == -1)
@@ -152,7 +152,7 @@ export class Editor {
 			clip.writeSync(text);
 		} else {
 			text = this.getSelectionText();
-			clip.writeSync();
+			clip.writeSync(text);
 		}
 		let t = Editor.delete(this.getSelectionRange());
 		this.updateMultiClip(text);
