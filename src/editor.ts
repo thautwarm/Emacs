@@ -7,17 +7,20 @@ enum RecenterPosition {
   Top,
   Bottom
 };
-
+const MAX_CLIPBOARD: number = 5;
 export class Editor {
 	private lastKill: vscode.Position // if kill position stays the same, append to clipboard
 	private justDidKill: boolean
 	private centerState: RecenterPosition
+	private clipboardDeque: (string|undefined)[]
+	private clipboardCursor: number = 0
 
 	constructor() {
 		this.justDidKill = false
 		this.lastKill = null
 		this.centerState = RecenterPosition.Middle
-
+		
+		this.clipboardDeque = Array(MAX_CLIPBOARD).map((_, i,) => undefined);
 		vscode.window.onDidChangeActiveTextEditor(event => {
 			this.lastKill = null
 		})
@@ -34,6 +37,37 @@ export class Editor {
 
 	static isOnLastLine(): boolean {
 		return vscode.window.activeTextEditor.selection.active.line == vscode.window.activeTextEditor.document.lineCount - 1
+	}
+
+	private* getMultiClip()
+	{
+		let u : vscode.QuickPickItem
+		for(let i = this.clipboardCursor, n = 0; n < MAX_CLIPBOARD; n++, i++)
+		{
+			let text = this.indexMultiClip(i);
+
+			if (text != undefined)
+			{
+				vscode.window.showInformationMessage("yield " + text);
+				u = { description: text.substring(0, 20), detail: text, label: new Date().toTimeString() + "%" + i };
+				yield u;
+			}
+				
+		}
+	}
+	private indexMultiClip(i: number): string | undefined
+	{
+		return this.clipboardDeque[i % MAX_CLIPBOARD]
+	}
+	private updateMultiClip(text: string)
+	{
+		let found = this.clipboardDeque.indexOf(text);
+		if (found == -1)
+		{
+			vscode.window.showInformationMessage("copying " + text);
+			this.clipboardDeque[this.clipboardCursor++ % MAX_CLIPBOARD] = text;
+		}
+			
 	}
 
 	setStatusBarMessage(text: string): vscode.Disposable {
@@ -107,26 +141,43 @@ export class Editor {
 	}
 
 	copy(): void {
-		clip.writeSync(this.getSelectionText())
+		let text = this.getSelectionText();
+		clip.writeSync(text);
+		this.updateMultiClip(text);
 		vscode.commands.executeCommand("emacs.exitMarkMode")
 	}
 
 	cut(appendClipboard?: boolean): Thenable<boolean> {
+		let text: string
 		if (appendClipboard) {
-			clip.writeSync(clip.readSync() + this.getSelectionText());
+			text = clip.readSync() + this.getSelectionText();	
+			clip.writeSync(text);
 		} else {
-			clip.writeSync(this.getSelectionText());
+			text = this.getSelectionText();
+			clip.writeSync();
 		}
 		let t = Editor.delete(this.getSelectionRange());
+		this.updateMultiClip(text);
 		vscode.commands.executeCommand("emacs.exitMarkMode");
 		return t
 	}
 
-	yank(): Thenable<{}> {
+	async yank(): Promise<any> {
 		this.justDidKill = false
-		return Promise.all([
-			vscode.commands.executeCommand("editor.action.clipboardPasteAction"),
-			vscode.commands.executeCommand("emacs.exitMarkMode")])
+		let text = await vscode.window.showQuickPick(Array.from(this.getMultiClip()), { canPickMany : false })
+		let detail = text.detail;
+		if (detail)
+		{
+			await vscode.env.clipboard.writeText(detail);
+			return await Promise.all([
+				vscode.commands.executeCommand("editor.action.clipboardPasteAction"),
+				])
+		}
+		else
+		{
+			return await vscode.commands.executeCommand("emacs.exitMarkMode");
+		}
+		
 	}
 
 	undo(): void {

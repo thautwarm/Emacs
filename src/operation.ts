@@ -20,8 +20,8 @@ export class Operation {
             'M-w': () => {
                 this.editor.copy()
             },
-            'C-y': () => {
-                this.editor.yank()
+            'C-y': async () => {
+                return (await this.editor.yank())
             },
             "C-x_C-o": () => {
                 this.editor.deleteBlankLines();
