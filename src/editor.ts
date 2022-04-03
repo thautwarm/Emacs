@@ -42,7 +42,7 @@ export class Editor {
 	private* getMultiClip()
 	{
 		let u : vscode.QuickPickItem
-		for(let i = this.clipboardCursor, n = 0; n < MAX_CLIPBOARD; n++, i++)
+		for(let i = this.clipboardCursor + MAX_CLIPBOARD - 1, n = 0; n < MAX_CLIPBOARD; n++, i--)
 		{
 			let text = this.indexMultiClip(i);
 
@@ -162,8 +162,8 @@ export class Editor {
 
 	async yank(): Promise<any> {
 		this.justDidKill = false
-		let text = await vscode.window.showQuickPick(Array.from(this.getMultiClip()), { canPickMany : false })
-		let detail = text.detail;
+		let item = await vscode.window.showQuickPick(Array.from(this.getMultiClip()), { canPickMany : false })
+		let detail = item.detail;
 		if (detail)
 		{
 			await vscode.env.clipboard.writeText(detail);
