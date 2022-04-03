@@ -48,7 +48,6 @@ export class Editor {
 
 			if (text != undefined)
 			{
-				vscode.window.showInformationMessage("yield " + text);
 				u = { description: text.substring(0, 20), detail: text, label: new Date().toTimeString() + "%" + i };
 				yield u;
 			}
@@ -64,7 +63,6 @@ export class Editor {
 		let found = this.clipboardDeque.indexOf(text);
 		if (found == -1)
 		{
-			vscode.window.showInformationMessage("copying " + text);
 			this.clipboardDeque[this.clipboardCursor++ % MAX_CLIPBOARD] = text;
 		}
 			
